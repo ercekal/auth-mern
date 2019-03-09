@@ -3,17 +3,27 @@ const bcrypt = require('bcrypt');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-const User = require('../../models/User')
 const gravatar = require('gravatar');
 const keys = require('../../config/keys');
+
+const validateRegisterInput = require('../../validation/register');
+const validateLoginInput = require('../../validation/login');
+
+
+const User = require('../../models/User')
 
 router.get('/test', (req, res) => res.json({msg: 'Users works'}))
 
 router.post('/register', (req, res) => {
-  User.findOne({email: req.body.email})
-  .then(user => {
+  const {errors, isValid} = validateRegisterInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+  const {email} = req.body;
+  User.findOne({email}).then(user => {
     if(user) {
-      return res.status(400).json({email: 'User already exists'});
+      errors.email = 'User already exists';
+      return res.status(400).json(errors);
     } else {
       const avatar = gravatar.url(req.body.email, {
         s: '200', r: 'pg', d: 'mm'
@@ -38,11 +48,16 @@ router.post('/register', (req, res) => {
   })
 })
 router.post('/login', (req, res) => {
+  const {errors, isValid} = validateLoginInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
   const {email, password} = req.body;
   User.findOne({email})
   .then(user => {
     if(!user) {
-      return res.status(404).json({email: 'User not found'});
+      errors.email = 'User not found';
+      return res.status(404).json(errors);
     }
     bcrypt.compare(password, user.password).then(isMatch => {
       if(isMatch) {
@@ -55,7 +70,8 @@ router.post('/login', (req, res) => {
           })
         })
       } else {
-        return res.status(404).json({password: 'password error'});
+        errors.password = 'Password error';
+        return res.status(404).json(errors);
       }
     })
     .catch(err => console.log(err))
