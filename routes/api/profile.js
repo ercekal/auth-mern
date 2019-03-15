@@ -6,11 +6,32 @@ const passport = require('passport');
 const Profile = require('../../models/Profile')
 const User = require('../../models/User')
 
-router.get('/test', (req, res) => res.json({msg: 'Profile works'}))
+const validateProfileInput = require('../../validation/profile');
+const validateExperienceInput = require('../../validation/experience');
+const validateEducationInput = require('../../validation/education');
 
-router.get('/profile', passport.authenticate('jwt', {session: false}), (req, res) => {
+router.get(
+  '/',
+  passport.authenticate('jwt', {session: false}),
+  (req, res) => {
+    const errors = {};
+    Profile.findOne({user: req.user.id})
+    .populate('user', ['name', 'avatar'])
+    .then(profile => {
+      if(!profile) {
+        errors.profile = 'No profile for this user'
+        return res.status(404).json(errors);
+      }
+      res.json(profile)
+    })
+    .catch(err => res.status(404).json(err));
+  }
+);
+
+router.get('/handle/:handle', (req, res) => {
   const errors = {};
-  Profile.findOne({user: req.user.id})
+  Profile.findOne({handle: req.params.handle})
+  .populate('user', ['name', 'avatar'])
   .then(profile => {
     if(!profile) {
       errors.profile = 'No profile for this user'
@@ -18,10 +39,98 @@ router.get('/profile', passport.authenticate('jwt', {session: false}), (req, res
     }
     res.json(profile)
   })
-  .catch(err => res.status(404).json(err));
-});
-router.post('/addProfile', passport.authenticate('jwt', {session: false}), (req, res) => {
-  const {handle, status, skills} = req.body;
+  .catch(err => res.status(404).json({profile: 'There is no profile'}));
+})
+
+router.get('/user/:user_id', (req, res) => {
+  const errors = {};
+  Profile.findOne({user: req.params.user_id})
+  .populate('user', ['name', 'avatar'])
+  .then(profile => {
+    if(!profile) {
+      errors.profile = 'No profile for this user'
+      return res.status(404).json(errors);
+    }
+    res.json(profile)
+  })
+  .catch(err => res.status(404).json({profile: 'There is no profile'}));
+})
+
+router.get('/all', (req, res) => {
+  const errors = {};
+  Profile.find()
+  .populate('user', ['name', 'avatar'])
+  .then(profiles => {
+    if(!profiles) {
+      errors.profile = 'No profiles'
+      return res.status(404).json(errors);
+    }
+    res.json(profiles)
+  })
+  .catch(err => res.status(404).json({profile: 'There is no profile'}));
+})
+
+router.post(
+  '/experience',
+  passport.authenticate('jwt', {session: false}), (req, res) => {
+  const {errors, isValid} = validateExperienceInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+  Profile.findOne({user: req.user.id})
+  .then(profile => {
+    console.log(profile);
+    const errors = {};
+    const {title, company, location, from, to, current, description} = req.body
+    const newExp = {
+      title,
+      company,
+      location,
+      from,
+      to,
+      current,
+      description
+    }
+    if(profile) {
+      profile.experience.unshift(newExp);
+      profile.save().then(profile => res.json(profile))
+    }
+  })
+})
+router.post(
+  '/education',
+  passport.authenticate('jwt', {session: false}), (req, res) => {
+  const {errors, isValid} = validateEducationInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+  Profile.findOne({user: req.user.id})
+  .then(profile => {
+    console.log(profile);
+    const errors = {};
+    const {school, degree, fieldOfStudy, from, to, current, description} = req.body
+    const newExp = {
+      school,
+      degree,
+      fieldOfStudy,
+      from: from,
+      to: to,
+      current: current,
+      description: description
+    }
+    if(profile) {
+      profile.education.unshift(newExp);
+      profile.save().then(profile => res.json(profile))
+    }
+  })
+})
+router.post(
+  '/',
+  passport.authenticate('jwt', {session: false}), (req, res) => {
+  const {errors, isValid} = validateProfileInput(req.body);
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
   const profileFields = {}
   profileFields.user = req.user.id
   if(req.body.handle) profileFields.handle = req.body.handle;
@@ -47,7 +156,7 @@ router.post('/addProfile', passport.authenticate('jwt', {session: false}), (req,
   .then(profile => {
     const errors = {};
     if(profile) {
-      Profile.findByIdAndUpdate(
+      Profile.findOneAndUpdate(
         {user: req.user.id},
         {$set: profileFields},
         {new: true}
