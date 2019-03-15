@@ -79,7 +79,6 @@ router.post(
   }
   Profile.findOne({user: req.user.id})
   .then(profile => {
-    console.log(profile);
     const errors = {};
     const {title, company, location, from, to, current, description} = req.body
     const newExp = {
@@ -97,17 +96,40 @@ router.post(
     }
   })
 })
+router.delete(
+  '/experience/:exp_id',
+  passport.authenticate('jwt', {session: false}), (req, res) => {
+  Profile.findOne({user: req.user.id})
+  .then(profile => {
+    const errors = {};
+    const {title, company, location, from, to, current, description} = req.body
+    const newExp = {
+      title,
+      company,
+      location,
+      from,
+      to,
+      current,
+      description
+    }
+    if(profile) {
+      const removeIndex = profile.experience
+        .map(item => item.id)
+        .indexOf(req.params.exp_id)
+      profile.experience.splice(removeIndex, 1)
+      profile.save().then(profile => res.json(profile))
+    }
+  })
+})
 router.post(
   '/education',
   passport.authenticate('jwt', {session: false}), (req, res) => {
-  const {errors, isValid} = validateEducationInput(req.body);
+  const {isValid} = validateEducationInput(req.body);
   if (!isValid) {
     return res.status(400).json(errors);
   }
   Profile.findOne({user: req.user.id})
   .then(profile => {
-    console.log(profile);
-    const errors = {};
     const {school, degree, fieldOfStudy, from, to, current, description} = req.body
     const newExp = {
       school,
@@ -120,6 +142,21 @@ router.post(
     }
     if(profile) {
       profile.education.unshift(newExp);
+      profile.save().then(profile => res.json(profile))
+    }
+  })
+})
+router.delete(
+  '/education/:edu_id',
+  passport.authenticate('jwt', {session: false}), (req, res) => {
+  Profile.findOne({user: req.user.id})
+  .then(profile => {
+    const {title, company, location, from, to, current, description} = req.body
+    if(profile) {
+      const removeIndex = profile.education
+        .map(item => item.id)
+        .indexOf(req.params.edu_id)
+      profile.education.splice(removeIndex, 1)
       profile.save().then(profile => res.json(profile))
     }
   })
