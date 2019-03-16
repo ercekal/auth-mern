@@ -1,10 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
 const passport = require('passport');
 
 const Profile = require('../../models/Profile')
-const User = require('../../models/User')
 
 const validateProfileInput = require('../../validation/profile');
 const validateExperienceInput = require('../../validation/experience');
@@ -101,17 +99,6 @@ router.delete(
   passport.authenticate('jwt', {session: false}), (req, res) => {
   Profile.findOne({user: req.user.id})
   .then(profile => {
-    const errors = {};
-    const {title, company, location, from, to, current, description} = req.body
-    const newExp = {
-      title,
-      company,
-      location,
-      from,
-      to,
-      current,
-      description
-    }
     if(profile) {
       const removeIndex = profile.experience
         .map(item => item.id)
@@ -131,7 +118,7 @@ router.post(
   Profile.findOne({user: req.user.id})
   .then(profile => {
     const {school, degree, fieldOfStudy, from, to, current, description} = req.body
-    const newExp = {
+    const newEdu = {
       school,
       degree,
       fieldOfStudy,
@@ -141,7 +128,7 @@ router.post(
       description: description
     }
     if(profile) {
-      profile.education.unshift(newExp);
+      profile.education.unshift(newEdu);
       profile.save().then(profile => res.json(profile))
     }
   })
